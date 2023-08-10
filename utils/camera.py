@@ -8,7 +8,7 @@ class Camera(object):
     yaw              = -90.0
     pitch            = 0.0
     # 以下三个参数用于调节鼠标交互
-    momventSpeed     = 2.5
+    momventSpeed     = 5.0
     mouseSensitivity = 0.1
     zoom             = 45.0
     # 

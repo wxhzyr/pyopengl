@@ -16,6 +16,10 @@ indices = vbo.VBO(np.array([0, 1, 2], dtype=np.uint32), target=GL_ELEMENT_ARRAY_
 myCamera = Camera(pyrr.Vector3([0.0, 0.0, 3.0]))
 width = 600
 height = 400
+curPosx = width / 2
+curPosy = height / 2
+delTime = 0.1
+curTime = 0.0
 def prepare():
     """准备模型数据"""
     global myShader, VERTICES, COLORS
@@ -25,7 +29,7 @@ def prepare():
 
 def draw():
     """绘制模型"""
-
+    global delTime, curTime
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)        # 清除缓冲区
     myShader.use()
     myShader.bindDataToShader('a_Position', VERTICES)
@@ -33,14 +37,18 @@ def draw():
     model = pyrr.matrix44.create_identity()
     view  = myCamera.getViewMatrix()
     projection = pyrr.matrix44.create_perspective_projection_matrix(myCamera.zoom, width / height, 0.1, 100)
-    print(projection)
     myShader.setMatrix4('model', model)
     myShader.setMatrix4('view', view)
     myShader.setMatrix4('projection', projection)
     with indices:
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, indices)
+    delTime = glutGet(GLUT_ELAPSED_TIME) - curTime
+    delTime = delTime / 1000
+    curTime = glutGet(GLUT_ELAPSED_TIME)  
+    # print(f"fps is {1 / delTime}")
     glUseProgram(0)
-    glFlush() # 执行缓冲区指令
+    glutSwapBuffers()
+    # glFlush() # 清空缓冲区指令（改为双缓冲写法）
 
 def click(btn, state, x, y):
     """鼠标按键和滚轮事件函数"""
@@ -56,20 +64,14 @@ def click(btn, state, x, y):
 def drag(x, y):
     """鼠标拖拽事件函数"""
 
-    # global mouse_pos, azim, elev, cam
-
-    # dx, dy = x-mouse_pos[0], y-mouse_pos[1] # 计算鼠标拖拽距离
-    # mouse_pos = (x, y) # 更新鼠标位置
-    # azim = azim - 180*dx/csize[0] # 计算方位角
-    # elev = elev + 90*dy/csize[1] # 计算高度角
-
-    # d = dist * np.cos(np.radians(elev))
-    # x_cam = d*np.sin(np.radians(azim))
-    # y_cam = dist*np.sin(np.radians(elev))
-    # z_cam = d*np.cos(np.radians(azim))
-    # cam = [x_cam, y_cam, z_cam] # 更新相机位置
- 
-    glutPostRedisplay() # 更新显示
+    global curPosx, curPosy
+    dx, dy = x - curPosx, curPosy - y
+    curPosx = x
+    curPosy = y
+    mode = glutGetModifiers()
+    if mode == GLUT_ACTIVE_SHIFT:
+        myCamera.processMouseMovement(dx, dy)
+        # glutPostRedisplay() # 更新显示
 
 def reshape(w, h):
     """改变窗口大小事件函数"""
@@ -80,34 +82,36 @@ def reshape(w, h):
     # csize = (w, h) # 保存窗口大小
     # aspect = w/h if h > 0 else 1e4 # 更新窗口宽高比
     glViewport(0, 0, width, height) # 设置视口
-    glutPostRedisplay() # 更新显示
+    # glutPostRedisplay() # 更新显示
 
 def keyProcess(c, x, y):
     if c == b'\x1b':
         glutLeaveMainLoop()
     elif c == b'w':
-        myCamera.processKeyMomvement("forward", 0.1)
+        myCamera.processKeyMomvement("forward", delTime)
     elif c == b's':
-        myCamera.processKeyMomvement('backward', 0.1)
+        myCamera.processKeyMomvement('backward', delTime)
     elif c == b'a':
-        myCamera.processKeyMomvement('left', 0.1)
+        myCamera.processKeyMomvement('left', delTime)
     elif c == b'd':
-        myCamera.processKeyMomvement('right', 0.1)
+        myCamera.processKeyMomvement('right', delTime)
     elif c == b'q':
-        myCamera.processKeyMomvement('up', 0.1)
+        myCamera.processKeyMomvement('up', delTime)
     elif c == b'e':
-        myCamera.processKeyMomvement('down', 0.1)
-    glutPostRedisplay() # 更新显示
+        myCamera.processKeyMomvement('down', delTime)
+    # glutPostRedisplay() # 更新显示
 
 
 if __name__ == "__main__":
     glutInit()                          # 1. 初始化glut库
-    # glutInitWindowSize()
-    glutCreateWindow('bj_sim_heart')    # 2. 创建glut窗口
-    prepare()                           # 3. 生成着色器程序、顶点数据集、颜色数据集
-    glutDisplayFunc(draw)               # 4. 绑定模型绘制函数
-    glutReshapeFunc(reshape)            # 5. 绑定窗口大小改变事件函数
-    glutMouseFunc(click)                # 6. 绑定鼠标按键
-    glutMotionFunc(drag)                # 7. 绑定鼠标拖拽事件函数
-    glutKeyboardFunc(keyProcess)        # 8. 响应键盘事件
-    glutMainLoop()                      # 9. 进入glut主循环
+    glutInitWindowSize(width, height)   # 2. 初始化窗口大小
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE)
+    glutCreateWindow('bj_sim_heart')    # 3. 创建glut窗口
+    prepare()                           # 4. 生成着色器程序、顶点数据集、颜色数据集
+    glutDisplayFunc(draw)               # 5. 绑定模型绘制函数
+    glutIdleFunc(draw)
+    glutReshapeFunc(reshape)            # 6. 绑定窗口大小改变事件函数
+    glutMouseFunc(click)                # 7. 绑定鼠标按键
+    glutPassiveMotionFunc(drag)         # 8. 绑定鼠标（无点击）移动函数
+    glutKeyboardFunc(keyProcess)        # 9. 响应键盘事件
+    glutMainLoop()                      # 10. 进入glut主循环
