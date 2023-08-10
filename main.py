@@ -1,5 +1,6 @@
 """最简单的着色器程序"""
 
+from time import sleep
 import numpy as np
 from OpenGL.GL import *
 from OpenGL.GLUT import *
@@ -30,6 +31,9 @@ def prepare():
 def draw():
     """绘制模型"""
     global delTime, curTime
+    delTime = glutGet(GLUT_ELAPSED_TIME) - curTime
+    delTime = delTime / 1000
+    curTime = glutGet(GLUT_ELAPSED_TIME)  
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)        # 清除缓冲区
     myShader.use()
     myShader.bindDataToShader('a_Position', VERTICES)
@@ -42,10 +46,7 @@ def draw():
     myShader.setMatrix4('projection', projection)
     with indices:
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, indices)
-    delTime = glutGet(GLUT_ELAPSED_TIME) - curTime
-    delTime = delTime / 1000
-    curTime = glutGet(GLUT_ELAPSED_TIME)  
-    # print(f"fps is {1 / delTime}")
+    print(f"fps is {1 / delTime}")
     glUseProgram(0)
     glutSwapBuffers()
     # glFlush() # 清空缓冲区指令（改为双缓冲写法）
@@ -59,7 +60,7 @@ def click(btn, state, x, y):
     if (btn == 0 or btn == 2) and state == 0: # 左键或右键被按下
         print(x, y) # 输出鼠标位置
 
-    glutPostRedisplay() # 更新显示
+    # glutPostRedisplay() # 更新显示
 
 def drag(x, y):
     """鼠标拖拽事件函数"""
@@ -99,8 +100,12 @@ def keyProcess(c, x, y):
         myCamera.processKeyMomvement('up', delTime)
     elif c == b'e':
         myCamera.processKeyMomvement('down', delTime)
+    # glutSwapBuffers()
     # glutPostRedisplay() # 更新显示
 
+def special():
+    draw()
+    sleep(5 / 1000)
 
 if __name__ == "__main__":
     glutInit()                          # 1. 初始化glut库
@@ -108,10 +113,10 @@ if __name__ == "__main__":
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE)
     glutCreateWindow('bj_sim_heart')    # 3. 创建glut窗口
     prepare()                           # 4. 生成着色器程序、顶点数据集、颜色数据集
-    glutDisplayFunc(draw)               # 5. 绑定模型绘制函数
-    glutIdleFunc(draw)
     glutReshapeFunc(reshape)            # 6. 绑定窗口大小改变事件函数
     glutMouseFunc(click)                # 7. 绑定鼠标按键
     glutPassiveMotionFunc(drag)         # 8. 绑定鼠标（无点击）移动函数
     glutKeyboardFunc(keyProcess)        # 9. 响应键盘事件
+    glutDisplayFunc(draw)               # 5. 绑定模型绘制函数
+    glutIdleFunc(special)
     glutMainLoop()                      # 10. 进入glut主循环
