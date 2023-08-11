@@ -1,12 +1,11 @@
 #version 330 core
 out vec3 FragColor;
 
-in vec2 TexCoords;
-in float meshID;
-in float vertID;
-uniform sampler2D texture_diffuse1;
+in float fId;
 
+uniform float rate;
 void main()
 {   
-    FragColor = vec3(meshID / 20000.0f, vertID / 20000.0f, 0.0f);
+    float tmp = fId;
+    FragColor = vec3(tmp / rate, tmp / rate, 1.0f);
 }

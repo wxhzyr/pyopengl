@@ -27,10 +27,21 @@ class Shader(object):
         glEnableVertexAttribArray(loc)
         Data.unbind()
 
+    def bindIndexToShader(self, name, Data: vbo.VBO):
+        loc = glGetAttribLocation(self.shaderProgram, str(name))
+        Data.bind()
+        glVertexAttribPointer(loc, 1, GL_FLOAT, GL_FALSE, 1 * 4, Data)
+        glEnableVertexAttribArray(loc)
+        Data.unbind()
+
     def setMatrix4(self, name, matrix):
         # 传入的矩阵为pyrr的matrix44类型
         loc = GL.glGetUniformLocation(self.shaderProgram, name)
         GL.glUniformMatrix4fv(loc, 1, GL_FALSE, matrix) #GL_FALSE表示此为列优先矩阵     
+    
+    def setFloat(self, name, value):
+        loc = GL.glGetUniformLocation(self.shaderProgram, name)
+        GL.glUniform1f(loc, value)
 
 
     def use(self):

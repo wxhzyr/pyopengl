@@ -11,12 +11,19 @@ class Camera(object):
     momventSpeed     = 5.0
     mouseSensitivity = 0.1
     zoom             = 45.0
-    # 
+    #  摄像头的向量参数
     position = None
     front    = None
     up       = None
     right    = None
     worldUp  = None
+    # 摄像头是否移动的参数
+    moveForward = False
+    moveBackward = False
+    moveLeft = False
+    moveRight = False
+    moveUp = False
+    moveDown = False
     def __init__(self, position = Vector3([0.0, 0.0, 0.0]), up = Vector3([0.0, 1.0, 0.0])) -> None:
         self.position = position
         self.worldUp  = up
@@ -48,19 +55,19 @@ class Camera(object):
 
         self.updateCameraVectors()
     
-    def processKeyMomvement(self, direction, deltaTime):
+    def processKeyMomvement(self, deltaTime):
         velocity = self.momventSpeed * deltaTime
-        if direction == "forward":
+        if self.moveForward:
             self.position = self.position + self.front * velocity
-        elif direction == 'backward':
+        elif self.moveBackward:
             self.position = self.position - self.front * velocity
-        elif direction == 'left':
+        elif self.moveLeft:
             self.position = self.position - self.right * velocity
-        elif direction == 'right':
+        elif self.moveRight:
             self.position = self.position + self.right * velocity
-        elif direction == 'up':
+        elif self.moveUp:
             self.position = self.position + self.up * velocity
-        elif direction == 'down':
+        elif self.moveDown:
              self.position = self.position - self.up * velocity
 
     def processMouseScroll(self, yoffset):
