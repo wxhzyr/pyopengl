@@ -9,7 +9,7 @@ class Camera(object):
     pitch            = 0.0
     # 以下三个参数用于调节鼠标交互
     momventSpeed     = 5.0
-    mouseSensitivity = 0.1
+    mouseSensitivity = 0.05
     zoom             = 45.0
     #  摄像头的向量参数
     position = None
@@ -24,6 +24,10 @@ class Camera(object):
     moveRight = False
     moveUp = False
     moveDown = False
+    # 摄像头视角偏移所需的参数
+    xOffset = 0
+    yOffset = 0
+    needUpdate = False
     def __init__(self, position = Vector3([0.0, 0.0, 0.0]), up = Vector3([0.0, 1.0, 0.0])) -> None:
         self.position = position
         self.worldUp  = up
@@ -41,19 +45,35 @@ class Camera(object):
     def getViewMatrix(self):
         return matrix44.create_look_at(self.position, self.position + self.front, self.up)
 
-    def processMouseMovement(self, xoffset, yoffset):
-        xoffset *= self.mouseSensitivity
-        yoffset *= self.mouseSensitivity
+    def processMouseMovement(self):
+        if self.needUpdate:
+            self.xOffset *= self.mouseSensitivity
+            self.yOffset *= self.mouseSensitivity
 
-        self.yaw += xoffset
-        self.pitch += yoffset
+            self.yaw += self.xOffset
+            self.pitch += self.yOffset
 
-        if self.pitch > 89.0:
-            self.pitch = 89.0
-        if self.pitch < -89.0:
-            self.pitch = -89.0
+            if self.pitch > 89.0:
+                self.pitch = 89.0
+            if self.pitch < -89.0:
+                self.pitch = -89.0
 
-        self.updateCameraVectors()
+            self.updateCameraVectors()
+        self.needUpdate = False
+
+    # def processMouseMovement(self, xoffset, yoffset):
+    #     xoffset *= self.mouseSensitivity
+    #     yoffset *= self.mouseSensitivity
+
+    #     self.yaw += xoffset
+    #     self.pitch += yoffset
+
+    #     if self.pitch > 89.0:
+    #         self.pitch = 89.0
+    #     if self.pitch < -89.0:
+    #         self.pitch = -89.0
+
+    #     self.updateCameraVectors()
     
     def processKeyMomvement(self, deltaTime):
         velocity = self.momventSpeed * deltaTime

@@ -8,22 +8,27 @@ from utils.shader import Shader
 from utils.camera import Camera
 from utils.offScreen import OffScreen
 import pyrr
-
+# windos参数
 width = 1280
 height = 720
+# 绘制数据
 VERTICES = None
 COLORS   = None
 INDEX    = None
+indices = vbo.VBO(np.array([0, 1, 2], dtype=np.uint32), target=GL_ELEMENT_ARRAY_BUFFER)
+n = 0
+# 着色器程序
 drawShader = None 
 pickShader = None 
+# 离屏渲染程序
 pickOffScreen = None
-indices = vbo.VBO(np.array([0, 1, 2], dtype=np.uint32), target=GL_ELEMENT_ARRAY_BUFFER)
+# 摄像头类
 myCamera = Camera(pyrr.Vector3([0.0, 0.0, 3.0]))
 curPosx = width / 2
 curPosy = height / 2
+# 计算FPS的参数
 delTime = 0.1
 curTime = 0.0
-n = 0
 
 def prepare():
     """准备模型数据"""
@@ -60,7 +65,7 @@ def draw():
     delTime = glutGet(GLUT_ELAPSED_TIME) - curTime
     delTime = delTime / 1000
     curTime = glutGet(GLUT_ELAPSED_TIME) 
-    camearMove()
+    camearUpdate()
     pickRender()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)        # 清除缓冲区
     drawShader.use()
@@ -87,11 +92,12 @@ def drag(window, x, y):
     """鼠标拖拽事件函数"""
 
     global curPosx, curPosy
-    dx, dy = x - curPosx, curPosy - y
+    myCamera.xOffset, myCamera.yOffset = x - curPosx, curPosy - y
     curPosx = x
     curPosy = y
     if glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS:
-        myCamera.processMouseMovement(dx, dy)
+        myCamera.needUpdate = True
+        # myCamera.processMouseMovement(dx, dy)
         # glutPostRedisplay() # 更新显示
 
 def reshape(window, w, h):
@@ -132,8 +138,10 @@ def keyProcess(window, key, scancode, action, mode):
     elif key == glfw.KEY_E and action == glfw.RELEASE:
         myCamera.moveDown = False
 
-def camearMove():
+def camearUpdate():
     myCamera.processKeyMomvement(delTime)
+    myCamera.processMouseMovement()
+        
 
 if __name__ == "__main__":
     glfw.init()                                                         # 1. 初始化glfw
