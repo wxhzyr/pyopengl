@@ -1,7 +1,7 @@
 #version 330 core
 out vec3 FragColor;
 
-in float fId;
+varying float fId;
 
 uniform float rate;
 void main()

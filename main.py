@@ -85,6 +85,7 @@ def draw():
 def click(window, button, action, mods):
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS: 
         data = pickOffScreen.readPixel(curPosx, height - curPosy - 1)
+        print(data * (n + 1))
     elif button == glfw.MOUSE_BUTTON_LEFT and action == glfw.RELEASE:
         pass
 
@@ -147,7 +148,7 @@ if __name__ == "__main__":
     glfw.init()                                                         # 1. 初始化glfw
     window = glfw.create_window(width, height, "bj_sim_heart", None, None)  # 2. 创建glfwwindow
     glfw.set_window_pos(window, 400, 200)                               # 3. 设置windows窗口位置
-    glfw.set_window_size_callback(window, reshape)                      # 4. 提供屏幕变换的回调函数
+    glfw.set_window_size_callback(window, reshape)                      # 4. 提供回调函数
     glfw.set_cursor_pos_callback(window, drag)
     glfw.set_key_callback(window, keyProcess)
     glfw.set_mouse_button_callback(window, click)

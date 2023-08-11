@@ -1,7 +1,7 @@
 #version 330 core
 in vec3 aPos;
 in float vId;
-out float fId;
+varying float fId;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
