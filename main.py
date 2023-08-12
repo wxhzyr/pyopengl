@@ -214,6 +214,9 @@ def camearUpdate():
     myCamera.processKeyMomvement(delTime)
     myCamera.processMouseMovement()
         
+def updateData():
+    # 此处更新数据vertices, colors
+    pass
 
 if __name__ == "__main__":
     glfw.init()                                                         # 1. 初始化glfw
@@ -228,6 +231,7 @@ if __name__ == "__main__":
     prepare()                                                           # 6. 准备数据
     while not glfw.window_should_close(window):                         # 7. 绘制主循环
         glfw.poll_events()
+        updateData()
         draw()
         glfw.swap_buffers(window)
 
