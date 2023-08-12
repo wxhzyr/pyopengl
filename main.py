@@ -1,5 +1,4 @@
 """最简单的着色器程序"""
-from math import sqrt
 import glfw
 import numpy as np
 from OpenGL.GL import *
