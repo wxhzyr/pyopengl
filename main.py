@@ -8,7 +8,7 @@ from OpenGL.arrays import vbo
 from utils.shader import Shader
 from utils.camera import Camera
 from utils.offScreen import OffScreen
-from utils.help import find_closest_vector, custom_distance
+from utils.help import find_closest_vector, custom_distance, readData
 import pyrr
 
 # windos参数
@@ -16,14 +16,16 @@ width = 1280
 height = 720
 windowPointer = None
 # 绘制数据
+vertices = None
+colors   = None
+indices  = None 
 VERTICES = None
 COLORS   = None
-INDEX    = None
+INDICES  = None 
+n = 0
+# 设定的预制数据，无需修改
 PLANE    = None
 PLANEINDICES = vbo.VBO(np.array([0, 1, 3, 1, 2, 3], dtype=np.uint32), target=GL_ELEMENT_ARRAY_BUFFER)
-indices = vbo.VBO(np.array([0, 1, 2], dtype=np.uint32), target=GL_ELEMENT_ARRAY_BUFFER)
-vertices = np.array([[0, 1, 0], [-1, -1, 0], [1, -1, 0]], dtype=np.float32)
-n = 0
 # 着色器程序
 drawShader = None 
 pickShader = None 
@@ -39,16 +41,19 @@ delTime = 0.1
 curTime = 0.0
 # 选中点的index
 chooseIndex = -1
+# 是否在拖动
 isDrag = False
 
 def prepare():
     """准备模型数据"""
-    global VERTICES, COLORS, INDEX, drawShader, pickShader, pickOffScreen, n, posOffScreen, PLANE
+    global vertices, VERTICES, colors, COLORS, indices, INDICES, n , drawShader, pickShader, pickOffScreen, posOffScreen, PLANE
+    vertices, colors, indices = readData(r'resources\data.json')
     n = vertices.shape[0]
     VERTICES = vbo.VBO(vertices)
-    COLORS = vbo.VBO(np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.float32))
+    COLORS = vbo.VBO(colors)
+    INDICES = vbo.VBO(indices, target=GL_ELEMENT_ARRAY_BUFFER)
+    # 无需修改
     PLANE = vbo.VBO(np.array([1 , 1 , 0, 1, -1, 0, -1, -1, 0, -1, 1, 0], dtype=np.float32))
-    INDEX = vbo.VBO(np.array([1.0, 2.0, 3.0], dtype=np.float32))
     drawShader = Shader(r"shaders/posAndColor.vs", r"shaders/posAndColor.fs")
     pickShader = Shader(r"shaders/pickTexture.vs", r"shaders/pickTexture.fs")
     pickOffScreen = OffScreen(width, height)
@@ -69,8 +74,8 @@ def pickRender():
     pickShader.setMatrix4('view', view)
     pickShader.setMatrix4('projection', projection)
     pickShader.setFloat('rate', 1000)
-    with indices:
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, indices) 
+    with INDICES:
+        glDrawElements(GL_TRIANGLES, indices.shape[0], GL_UNSIGNED_INT, INDICES) 
     pickOffScreen.disableOffRender()
 
 def posRender():
@@ -111,6 +116,7 @@ def posRender():
 def draw():
     """绘制模型"""
     global vertices, delTime, curTime, VERTICES, COLORS
+    glEnable(GL_DEPTH_TEST)
     if isDrag and chooseIndex > 0:
         data = posOffScreen.readPixel(curPosx, height - curPosy - 1) * 20000
         data.reshape(1, 3)
@@ -135,8 +141,8 @@ def draw():
     drawShader.setMatrix4('model', model)
     drawShader.setMatrix4('view', view)
     drawShader.setMatrix4('projection', projection)
-    with indices:
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, indices) 
+    with INDICES:
+        glDrawElements(GL_TRIANGLES, indices.shape[0], GL_UNSIGNED_INT, INDICES) 
     glfw.set_window_title(windowPointer, f"fps is {round(1 / delTime)}")
     # print(f"fps is {1 / delTime}")
     glUseProgram(0)
