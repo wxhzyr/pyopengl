@@ -28,7 +28,7 @@ PLANE    = None
 PLANEINDICES = vbo.VBO(np.array([0, 1, 3, 1, 2, 3], dtype=np.uint32), target=GL_ELEMENT_ARRAY_BUFFER)
 # 着色器程序
 drawShader = None 
-pickShader = None 
+offRenderShader = None 
 # 离屏渲染程序
 pickOffScreen = None
 posOffScreen  = None
@@ -46,7 +46,7 @@ isDrag = False
 
 def prepare():
     """准备模型数据"""
-    global vertices, VERTICES, colors, COLORS, indices, INDICES, n , drawShader, pickShader, pickOffScreen, posOffScreen, PLANE
+    global vertices, VERTICES, colors, COLORS, indices, INDICES, n , drawShader, offRenderShader, pickOffScreen, posOffScreen, PLANE
     vertices, colors, indices = readData(r'resources\data.json')
     n = vertices.shape[0]
     VERTICES = vbo.VBO(vertices)
@@ -55,7 +55,7 @@ def prepare():
     # 无需修改
     PLANE = vbo.VBO(np.array([1 , 1 , 0, 1, -1, 0, -1, -1, 0, -1, 1, 0], dtype=np.float32))
     drawShader = Shader(r"shaders/posAndColor.vs", r"shaders/posAndColor.fs")
-    pickShader = Shader(r"shaders/pickTexture.vs", r"shaders/pickTexture.fs")
+    offRenderShader = Shader(r"shaders/pickTexture.vs", r"shaders/pickTexture.fs")
     pickOffScreen = OffScreen(width, height)
     posOffScreen  = OffScreen(width, height)
 
@@ -63,17 +63,17 @@ def pickRender():
     # 目前对pick的实现回到了计算坐标上面，不确定在顶点较多时的表现力
     pickOffScreen.enableOffRender()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    pickShader.use()
+    offRenderShader.use()
     VERTICES.set_array(vertices)
-    pickShader.bindDataToShader('aPos', VERTICES)
+    offRenderShader.bindDataToShader('aPos', VERTICES)
     # pickShader.bindIndexToShader('vId', INDEX)
     model = pyrr.matrix44.create_identity()
     view  = myCamera.getViewMatrix()
     projection = pyrr.matrix44.create_perspective_projection_matrix(myCamera.zoom, width / height, 0.1, 100)
-    pickShader.setMatrix4('model', model)
-    pickShader.setMatrix4('view', view)
-    pickShader.setMatrix4('projection', projection)
-    pickShader.setFloat('rate', 1000)
+    offRenderShader.setMatrix4('model', model)
+    offRenderShader.setMatrix4('view', view)
+    offRenderShader.setMatrix4('projection', projection)
+    offRenderShader.setFloat('rate', 1000)
     with INDICES:
         glDrawElements(GL_TRIANGLES, indices.shape[0], GL_UNSIGNED_INT, INDICES) 
     pickOffScreen.disableOffRender()
@@ -99,15 +99,15 @@ def posRender():
     PLANE.set_array(plane)
     posOffScreen.enableOffRender()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    pickShader.use()
-    pickShader.bindDataToShader('aPos', PLANE)
+    offRenderShader.use()
+    offRenderShader.bindDataToShader('aPos', PLANE)
     model = pyrr.matrix44.create_identity()
     view  = myCamera.getViewMatrix()
     projection = pyrr.matrix44.create_perspective_projection_matrix(myCamera.zoom, width / height, 0.1, 100)
-    pickShader.setMatrix4('model', model)
-    pickShader.setMatrix4('view', view)
-    pickShader.setMatrix4('projection', projection)
-    pickShader.setFloat('rate', 20000)
+    offRenderShader.setMatrix4('model', model)
+    offRenderShader.setMatrix4('view', view)
+    offRenderShader.setMatrix4('projection', projection)
+    offRenderShader.setFloat('rate', 20000)
     with PLANEINDICES:
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, PLANEINDICES)
     posOffScreen.disableOffRender()
@@ -120,7 +120,6 @@ def draw():
     if isDrag and chooseIndex > 0:
         data = posOffScreen.readPixel(curPosx, height - curPosy - 1) * 20000
         data.reshape(1, 3)
-        print(data)
         vertices[chooseIndex - 1] = data
         # print(vertices)
     delTime = glutGet(GLUT_ELAPSED_TIME) - curTime
@@ -132,7 +131,7 @@ def draw():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)        # 清除缓冲区
     drawShader.use()
     VERTICES.set_array(vertices)
-    # COLORS.set_array()
+    COLORS.set_array(colors)
     drawShader.bindDataToShader('a_Position', VERTICES)
     drawShader.bindDataToShader('a_Color', COLORS)
     model = pyrr.matrix44.create_identity()
@@ -152,11 +151,11 @@ def click(window, button, action, mods):
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS: 
         data = pickOffScreen.readPixel(curPosx, height - curPosy - 1) * 1000
         v, vId = find_closest_vector(vertices, data)
+        chooseIndex = vId + 1
         if custom_distance(v, data) < 0.1:
             # print(f"最近的点为{vId + 1}，点坐标为{v}")
-            chooseIndex = vId + 1
-        else:
-            chooseIndex = -1
+            colors[chooseIndex - 1] = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+
         isDrag = True
     elif button == glfw.MOUSE_BUTTON_LEFT and action == glfw.RELEASE:
         isDrag = False
@@ -231,7 +230,7 @@ if __name__ == "__main__":
     prepare()                                                           # 6. 准备数据
     while not glfw.window_should_close(window):                         # 7. 绘制主循环
         glfw.poll_events()
-        updateData()
+        updateData()                                                    # 8. 更新数据
         draw()
         glfw.swap_buffers(window)
 

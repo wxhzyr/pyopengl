@@ -23,4 +23,7 @@ def readData(dir):
     v = np.array(data['vertices'], dtype=np.float32)
     len = v.shape[0]
     v = np.reshape(v, (int(len / 3), 3))
-    return v, np.array(data['colors'], dtype=np.float32), np.array(data['indices'], dtype=np.uint32)
+    c = np.array(data['colors'], dtype=np.float32)
+    len = c.shape[0]
+    c = np.reshape(c, (int(len / 3), 3))
+    return v, c, np.array(data['indices'], dtype=np.uint32)
