@@ -1,4 +1,5 @@
 """最简单的着色器程序"""
+from math import sqrt
 import glfw
 import numpy as np
 from OpenGL.GL import *
@@ -7,21 +8,28 @@ from OpenGL.arrays import vbo
 from utils.shader import Shader
 from utils.camera import Camera
 from utils.offScreen import OffScreen
+from utils.help import find_closest_vector, custom_distance
 import pyrr
+
 # windos参数
 width = 1280
 height = 720
+windowPointer = None
 # 绘制数据
 VERTICES = None
 COLORS   = None
 INDEX    = None
+PLANE    = None
+PLANEINDICES = vbo.VBO(np.array([0, 1, 3, 1, 2, 3], dtype=np.uint32), target=GL_ELEMENT_ARRAY_BUFFER)
 indices = vbo.VBO(np.array([0, 1, 2], dtype=np.uint32), target=GL_ELEMENT_ARRAY_BUFFER)
+vertices = np.array([[0, 1, 0], [-1, -1, 0], [1, -1, 0]], dtype=np.float32)
 n = 0
 # 着色器程序
 drawShader = None 
 pickShader = None 
 # 离屏渲染程序
 pickOffScreen = None
+posOffScreen  = None
 # 摄像头类
 myCamera = Camera(pyrr.Vector3([0.0, 0.0, 3.0]))
 curPosx = width / 2
@@ -29,46 +37,96 @@ curPosy = height / 2
 # 计算FPS的参数
 delTime = 0.1
 curTime = 0.0
+# 选中点的index
+chooseIndex = -1
+isDrag = False
 
 def prepare():
     """准备模型数据"""
-    global VERTICES, COLORS, INDEX, drawShader, pickShader, pickOffScreen, n
-    vertices = np.array([[0, 1, 0], [-1, -1, 0], [1, -1, 0]], dtype=np.float32)
+    global VERTICES, COLORS, INDEX, drawShader, pickShader, pickOffScreen, n, posOffScreen, PLANE
     n = vertices.shape[0]
     VERTICES = vbo.VBO(vertices)
     COLORS = vbo.VBO(np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.float32))
+    PLANE = vbo.VBO(np.array([1 , 1 , 0, 1, -1, 0, -1, -1, 0, -1, 1, 0], dtype=np.float32))
     INDEX = vbo.VBO(np.array([1.0, 2.0, 3.0], dtype=np.float32))
     drawShader = Shader(r"shaders/posAndColor.vs", r"shaders/posAndColor.fs")
     pickShader = Shader(r"shaders/pickTexture.vs", r"shaders/pickTexture.fs")
     pickOffScreen = OffScreen(width, height)
+    posOffScreen  = OffScreen(width, height)
 
 def pickRender():
+    # 目前对pick的实现回到了计算坐标上面，不确定在顶点较多时的表现力
     pickOffScreen.enableOffRender()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     pickShader.use()
+    VERTICES.set_array(vertices)
     pickShader.bindDataToShader('aPos', VERTICES)
-    pickShader.bindIndexToShader('vId', INDEX)
+    # pickShader.bindIndexToShader('vId', INDEX)
     model = pyrr.matrix44.create_identity()
     view  = myCamera.getViewMatrix()
     projection = pyrr.matrix44.create_perspective_projection_matrix(myCamera.zoom, width / height, 0.1, 100)
     pickShader.setMatrix4('model', model)
     pickShader.setMatrix4('view', view)
     pickShader.setMatrix4('projection', projection)
-    pickShader.setFloat('rate', n + 1)
+    pickShader.setFloat('rate', 1000)
     with indices:
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, indices) 
     pickOffScreen.disableOffRender()
 
+def posRender():
+    global PLANE, PLANEINDICES
+    depth = 3.0
+    len   = 20000.0
+    if chooseIndex > 0 and isDrag:
+        direction = vertices[chooseIndex - 1] - np.array(list(myCamera.position))
+        front     = np.array(list(myCamera.front))
+        front     = front / np.linalg.norm(front)
+        depth     = np.dot(direction, front) # 距离该点所在平面的深度
+    top_right = myCamera.position + depth * myCamera.front + len / 2 * myCamera.right + len / 2 * myCamera.up
+    bottom_right = top_right - len * myCamera.up
+    bottom_left = bottom_right - len * myCamera.right
+    top_left = top_right - len * myCamera.right
+    plane = [   top_right.x,    top_right.y, top_right.z,   
+                bottom_right.x, bottom_right.y,bottom_right.z,
+                bottom_left.x, bottom_left.y, bottom_left.z,
+                top_left.x,     top_left.y,  top_left.z]
+    plane = np.array([plane], dtype=np.float32)
+    PLANE.set_array(plane)
+    posOffScreen.enableOffRender()
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    pickShader.use()
+    pickShader.bindDataToShader('aPos', PLANE)
+    model = pyrr.matrix44.create_identity()
+    view  = myCamera.getViewMatrix()
+    projection = pyrr.matrix44.create_perspective_projection_matrix(myCamera.zoom, width / height, 0.1, 100)
+    pickShader.setMatrix4('model', model)
+    pickShader.setMatrix4('view', view)
+    pickShader.setMatrix4('projection', projection)
+    pickShader.setFloat('rate', 20000)
+    with PLANEINDICES:
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, PLANEINDICES)
+    posOffScreen.disableOffRender()
+
+
 def draw():
     """绘制模型"""
-    global delTime, curTime
+    global vertices, delTime, curTime, VERTICES, COLORS
+    if isDrag and chooseIndex > 0:
+        data = posOffScreen.readPixel(curPosx, height - curPosy - 1) * 20000
+        data.reshape(1, 3)
+        print(data)
+        vertices[chooseIndex - 1] = data
+        # print(vertices)
     delTime = glutGet(GLUT_ELAPSED_TIME) - curTime
     delTime = delTime / 1000
     curTime = glutGet(GLUT_ELAPSED_TIME) 
     camearUpdate()
     pickRender()
+    posRender()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)        # 清除缓冲区
     drawShader.use()
+    VERTICES.set_array(vertices)
+    # COLORS.set_array()
     drawShader.bindDataToShader('a_Position', VERTICES)
     drawShader.bindDataToShader('a_Color', COLORS)
     model = pyrr.matrix44.create_identity()
@@ -79,27 +137,33 @@ def draw():
     drawShader.setMatrix4('projection', projection)
     with indices:
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, indices) 
+    glfw.set_window_title(windowPointer, f"fps is {round(1 / delTime)}")
     # print(f"fps is {1 / delTime}")
     glUseProgram(0)
 
 def click(window, button, action, mods):
+    global chooseIndex, isDrag
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS: 
-        data = pickOffScreen.readPixel(curPosx, height - curPosy - 1)
-        print(data * (n + 1))
+        data = pickOffScreen.readPixel(curPosx, height - curPosy - 1) * 1000
+        v, vId = find_closest_vector(vertices, data)
+        if custom_distance(v, data) < 0.1:
+            # print(f"最近的点为{vId + 1}，点坐标为{v}")
+            chooseIndex = vId + 1
+        else:
+            chooseIndex = -1
+        isDrag = True
     elif button == glfw.MOUSE_BUTTON_LEFT and action == glfw.RELEASE:
-        pass
+        isDrag = False
 
 def drag(window, x, y):
     """鼠标拖拽事件函数"""
 
-    global curPosx, curPosy
+    global curPosx, curPosy, vertices
     myCamera.xOffset, myCamera.yOffset = x - curPosx, curPosy - y
     curPosx = x
     curPosy = y
     if glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS:
         myCamera.needUpdate = True
-        # myCamera.processMouseMovement(dx, dy)
-        # glutPostRedisplay() # 更新显示
 
 def reshape(window, w, h):
     """改变窗口大小事件函数"""
@@ -109,6 +173,7 @@ def reshape(window, w, h):
     height = h
     glViewport(0, 0, width, height) # 设置视口
     pickOffScreen.resize(w, h)
+    posOffScreen.resize(w, h)
 
 def keyProcess(window, key, scancode, action, mode):
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
@@ -147,6 +212,7 @@ def camearUpdate():
 if __name__ == "__main__":
     glfw.init()                                                         # 1. 初始化glfw
     window = glfw.create_window(width, height, "bj_sim_heart", None, None)  # 2. 创建glfwwindow
+    windowPointer = window
     glfw.set_window_pos(window, 400, 200)                               # 3. 设置windows窗口位置
     glfw.set_window_size_callback(window, reshape)                      # 4. 提供回调函数
     glfw.set_cursor_pos_callback(window, drag)

@@ -1,11 +1,12 @@
 #version 330 core
 out vec3 FragColor;
 
-varying float fId;
-
+// varying float fId;
+varying vec3 fPos;
 uniform float rate;
 void main()
 {   
-    float tmp = fId;
-    FragColor = vec3(tmp / rate, tmp / rate, 1.0f);
+    // float tmp = fId;
+    vec3 tmp = fPos;
+    FragColor = tmp / rate;
 }
